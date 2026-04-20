@@ -1,65 +1,125 @@
+# Phase 1 — Foundation + Pixel-Perfect ProductCard
 
+Approved scope with two added quality bars: **performance** (no layout shift, lazy images, GPU-only animations, no re-render storms) and **accessibility** (ARIA labels on every icon-only control, keyboard parity, semantic markup).
 
-# Teefuly Build Plan — Phased Approach
+## 1. Design tokens
 
-You've outlined three sequential focus areas. I'll tackle them in order, with the design system foundation built alongside Phase 1 (since ProductCard depends on it).
+`**src/index.css**` — replace default tokens with Teefuly palette in HSL:
 
-## Phase 1 — Design System + Pixel-Perfect ProductCard
+- `--primary: 19 88% 53%` · `--primary-dark: 17 78% 47%` · `--primary-light: 22 100% 96%`
+- `--secondary: 222 33% 26%` · `--accent: 158 100% 36%`
+- `--background: 60 14% 98%` (warm off-white) · `--card: 0 0% 100%`
+- `--foreground: 0 0% 13%` · `--text-secondary: 0 0% 44%` · `--text-muted: 0 0% 63%`
+- `--border: 0 0% 92%` · `--border-hover: 0 0% 83%`
+- `--radius: 12px` (md), with sm/lg/full also defined
+- Three `--shadow-sm/md/lg` variables
+- `body` font set to DM Sans; `.font-display` utility for Playfair
 
-**Design tokens** (`src/index.css` + `tailwind.config.ts`)
-- Replace default HSL tokens with the Teefuly palette (converted to HSL for Tailwind compatibility): `--primary: 19 88% 53%` (#F1641E), `--primary-dark`, `--primary-light: 22 100% 96%`, `--secondary: 222 33% 26%` (navy), `--accent: 158 100% 36%` (trust green), `--bg-base: 60 14% 98%`, text/border tokens, three shadow elevations, four radius tiers.
-- Load Google Fonts: Playfair Display (display), DM Sans (body), DM Mono (price/tags) via `index.html` preconnect + `<link>`.
-- Extend Tailwind: `fontFamily.display/sans/mono`, `boxShadow.sm/md/lg`, `borderRadius.sm/md/lg/full`, full font-size scale (xs→4xl per spec), keyframes for `fade-up`, `pop`, `float`, `shimmer`, `slide-underline`.
+`**index.html**` — preconnect + single Google Fonts link for Playfair Display (600/700), DM Sans (400/500/600), DM Mono (500).
 
-**Core UI primitives** (only what ProductCard needs in this phase)
-- Refactor `Button` variants to spec: `primary` (orange fill, hover scale 1.02), `secondary` (orange outline → fill), `ghost` (navy → primary-light bg), `danger`, `icon`. Font-weight 600, letter-spacing 0.01em, 200ms ease.
-- `src/components/ui/badge-teefuly.tsx` — pill chip with variants: `category`, `bestseller`, `new`, `sale`, `freeShipping`, `madeToOrder`, `eco`. Subtle tinted backgrounds.
-- `src/components/ui/star-rating.tsx` — half-star support (SVG with clip-path), accent-green fill, optional interactive mode, `(247)` count rendering.
+`**tailwind.config.ts**` — extend with:
 
-**ProductCard** (`src/components/product/ProductCard.tsx`) — pixel-perfect to spec
-- 1:1 aspect-ratio image container, `overflow-hidden`, `rounded-lg`, lazy `loading="lazy"` with blur placeholder via `bg-muted` shimmer until load.
-- Hover: image `scale(1.04)` 250ms; card gets `shadow-md` + `border-hover`.
-- Top-left: category Badge absolutely positioned (12px inset).
-- Top-right: wishlist heart icon-button (Lucide `Heart`), click animates `scale 1 → 1.3 → 1` with fill toggling to primary orange. State held locally for now (Zustand store comes in a later phase).
-- Bottom hover overlay: "Quick View" button slides up from bottom (`translateY(100%) → 0`, 250ms).
-- Content area (12px padding):
-  - Shop row: 16px circular avatar + shop name in `text-sm text-muted`.
-  - Title: `text-base font-medium`, 2-line clamp via `line-clamp-2`.
-  - Rating row: StarRating + review count, accent-green stars.
-  - Price: `font-mono text-md` (DM Mono), strikethrough compare price if present.
-  - "FREE shipping" Badge conditionally rendered.
-- Skeleton variant exported alongside (`ProductCardSkeleton`) with shimmer animation for loading states.
+- `fontFamily: { display: ['Playfair Display', 'serif'], sans: ['DM Sans', 'sans-serif'], mono: ['DM Mono', 'monospace'] }`
+- Full font-size scale `xs→4xl` per spec (11→64px)
+- `boxShadow.sm/md/lg` bound to CSS vars
+- `borderRadius.sm/md/lg` (6/12/20px)
+- New keyframes: `fade-up`, `heart-pop`, `float`, `shimmer`, `slide-up-overlay`
+- Bind to `animation` map
 
-**Mock data seed** (`src/lib/mock-data.ts`)
-- 20 products across all categories with curated Unsplash URLs (apparel/mugs/posters), realistic titles, prices $14.99–$49.99, ratings 4.3–5.0, tags, shop names, variant data. Shape matches the future Supabase schema so Phase 3 swaps cleanly.
-- TypeScript types in `src/lib/types/product.ts`.
+## 2. UI primitives
 
-**Demo on Index page** — render a 4-column grid of ProductCards using mock data so you can verify pixel-perfection before approving Phase 2.
+- `**src/components/ui/button.tsx**` — refactor variants: `default` (orange, hover bg primary-dark + scale 1.02), `secondary` (white + orange border → fills on hover), `ghost` (navy text → primary-light bg), `destructive`, `outline`. Add `font-semibold tracking-[0.01em] transition-all duration-200`.
+- `**src/components/ui/badge-teefuly.tsx**` — pill chip; variants: `category`, `bestseller`, `new`, `sale`, `freeShipping`, `madeToOrder`, `eco`. Each with subtle tinted bg (e.g. `bg-accent/10 text-accent`).
+- `**src/components/ui/star-rating.tsx**` — SVG with linear-gradient clip for half-stars, accent-green fill, props: `value`, `count?`, `size?`, `interactive?`, `onChange?`. Renders `<div role="img" aria-label="Rated 4.8 out of 5">`.
 
-## Phase 2 — Homepage Hero (after Phase 1 approval)
+## 3. ProductCard — pixel-perfect
 
-Will be built in a follow-up message once the ProductCard is signed off. Scope preview:
-- Sticky `Header` (logo + search + cart/favorites/auth actions) with scroll shadow.
-- Horizontally-scrollable category nav pills with fade indicators.
-- 520px Hero: warm radial-gradient mesh background, 55/45 split, Playfair H1, dual CTAs, social proof line, right-side floating product card stack with `float` keyframe animation.
-- TrustBar (4-column icon row).
+`**src/lib/types/product.ts**` — `Product` interface matching future Supabase schema (id, slug, title, price_cents, compare_price?, images[], shop {name, avatar}, rating_avg, rating_count, category, free_shipping, badges[]).
 
-## Phase 3 — Supabase Wiring for Product Listing (after Phases 1 & 2)
+`**src/components/product/ProductCard.tsx**`
 
-- Enable Lovable Cloud, run migration creating `products`, `categories`, `reviews`, `analytics_events` tables matching spec, plus `v_products_active`, `v_trending`, `v_featured` views. RLS: public read on active products/categories/reviews; insert restricted.
-- Seed migration loads the mock data into `products` so DB is non-empty out of the gate.
-- `src/lib/supabase/queries.ts` — `getProducts({ category?, sort?, filters? })` server-style helper using the generated client.
-- New `/shop` route (`src/pages/Shop.tsx`) registered in `App.tsx` above the catch-all.
-- Listing page uses TanStack Query `useQuery` to fetch; on `data?.length === 0 || error`, falls back to `MOCK_PRODUCTS` so the page is never blank.
-- Skeleton grid during loading, empty-state component if both DB and mock are empty (defensive).
+Structure:
 
-## Technical Notes
+```text
+<article> (group, focus-within ring)
+  <div aspect-square relative overflow-hidden rounded-md>
+    <img loading="lazy" decoding="async" + bg-muted shimmer until load>
+    <Badge category absolute top-3 left-3>
+    <button aria-label="Add {title} to favorites" absolute top-3 right-3>
+      <Heart /> (animates scale 1→1.3→1 on toggle, fills primary)
+    </button>
+    <div quick-view overlay translate-y-full group-hover:translate-y-0>
+      <Button>Quick View</Button>
+    </div>
+  </div>
+  <div p-3 space-y-1.5>
+    <a shop row: 16px avatar + name>
+    <h3 line-clamp-2 text-base font-medium>{title}</h3>
+    <StarRating + count>
+    <div price row: font-mono + optional strike compare + FreeShipping badge>
+  </div>
+</article>
+```
 
-- Stack adaptation: brief specifies Next.js 15 — this project is **React 18 + Vite + React Router**. All Next-specific APIs map as: `next/image` → native `<img loading="lazy">` with aspect-ratio CSS, `generateMetadata` → `react-helmet-async`, App Router pages → React Router routes. Server Components are not available; data fetching uses TanStack Query (already installed) on the client. This was confirmed acceptable in the prior turn.
-- All colors authored as HSL in `index.css` and consumed via `hsl(var(--token))` — no hard-coded hex in components.
-- Strict TS, alt text on every image, focus-visible states on all interactive elements.
+**Performance**:
 
-## What you'll see after Phase 1
+- `React.memo` on ProductCard with shallow compare
+- Wishlist toggle uses local `useState` + `useCallback`
+- Animations use `transform`/`opacity` only (GPU); no `width/height` transitions
+- `aspect-square` on image container reserves space → zero CLS
+- `loading="lazy"` + `decoding="async"` on every product image
+- Image hover scale lives on `<img>`, not parent → no layout reflow
 
-Index page replaced with a clean grid of 8 ProductCards on the warm off-white background, demonstrating: hover scale, wishlist heart pop, quick-view slide-up, category badge, free-shipping badge, half-star ratings, mono-font prices. Ready for your pixel-level feedback before I move to the Hero.
+**Accessibility**:
 
+- Root is `<article>` with `aria-labelledby` pointing to title
+- Title wrapped in `<a>` covering the card via `::after` pseudo (whole-card click without nesting interactive elements)
+- Heart button: `aria-label="Add to favorites" / "Remove from favorites"` + `aria-pressed`
+- Quick View button: `aria-label="Quick view {title}"`
+- Star rating: `role="img"` with descriptive `aria-label`
+- Shop avatar `<img>` with alt = shop name
+- `focus-visible:ring-2 ring-primary` on all interactive elements
+- Quick-view overlay shown on hover **and** focus-within so keyboard users get parity
+- `prefers-reduced-motion`: media query in `index.css` disables transforms/keyframes
+
+`**ProductCardSkeleton**` exported from same file: shimmer keyframe over square + text bars.
+
+## 4. Mock data
+
+`**src/lib/mock-data.ts**` — 20 products, curated Unsplash URLs (apparel/mugs/posters/totes/cases), realistic titles, prices $14.99–$49.99, ratings 4.3–5.0, mix of `is_trending`/`is_featured`/`free_shipping`/compare prices, shop names with avatars. Same shape as Supabase schema for clean Phase 3 swap.
+
+## 5. Demo page
+
+`**src/pages/Index.tsx**` — replace placeholder with:
+
+- Warm off-white background (`bg-background`)
+- Container with header line ("ProductCard — Phase 1 Preview" in Playfair)
+- Responsive grid: `grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6`
+- Render 8 ProductCards from mock data
+- One row of `ProductCardSkeleton` below to verify loading state
+
+## File map
+
+```text
+src/
+  index.css                              (rewrite tokens)
+  index.html                             (font links)
+  tailwind.config.ts                     (extend)
+  components/
+    ui/
+      button.tsx                         (refactor variants)
+      badge-teefuly.tsx                  (new)
+      star-rating.tsx                    (new)
+    product/
+      ProductCard.tsx                    (new, memoized)
+      ProductCardSkeleton.tsx            (new — co-located export)
+  lib/
+    types/product.ts                     (new)
+    mock-data.ts                         (new)
+  pages/
+    Index.tsx                            (rewrite as demo grid)
+```
+
+## Out of scope for Phase 1
+
+Header, Hero, category nav, footer, routing for /shop or /product, Lovable Cloud, Zustand stores. These are Phases 2–3 once you sign off on the card. ​"Please execute Phase 1 of the Teefuly project based on the following technical specification. Focus on absolute fidelity to the design tokens and the performance/accessibility bars. Do not proceed to the Hero or Header yet; I want to see the 8-card grid demo first."
