@@ -9,13 +9,22 @@ import seedSql from "../../../seeds/products.sql?raw";
 const API = "https://tevuly.com";
 const db = (env as unknown as WorkerEnv).TEVULY_D1;
 
+/**
+ * D1's exec driver treats a leading comment-only line as a bad statement.
+ * Full-line comments are documentative only — strip them for the test
+ * runtime. (Real migrations via `wrangler d1 migrations apply` are fine.)
+ */
+function stripSqlComments(sql: string): string {
+  return sql.replace(/^\s*--.*$\n?/gm, "");
+}
+
 function json<T>(res: Response): Promise<T> {
   return res.json() as Promise<T>;
 }
 
 beforeAll(async () => {
-  await db.exec(migrationSql);
-  await db.exec(seedSql);
+  await db.exec(stripSqlComments(migrationSql));
+  await db.exec(stripSqlComments(seedSql));
 });
 
 describe("GET /api/health", () => {

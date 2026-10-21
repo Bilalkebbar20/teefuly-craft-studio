@@ -51,6 +51,9 @@ jobs:
             echo "::error::.dev.vars committed (worker/.gitignore forbids it)"
             exit 1
           fi
+      - name: Install worker deps (deploy --dry-run bundles src/, which imports hono/zod)
+        run: npm ci
+        working-directory: worker
       - name: Config validation (parse both wrangler targets)
         run: |
           cd worker
