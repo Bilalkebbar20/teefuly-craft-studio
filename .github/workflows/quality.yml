@@ -1,0 +1,70 @@
+name: quality
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  worker:
+    name: worker (typecheck · unit · integration)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: worker
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: worker/package-lock.json
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - run: npm ci
+      - run: npm run seed:check
+      - run: npm run typecheck
+      - run: npm run test:unit
+      - run: npm run test:integration
+
+  security-scan:
+    name: secrets & config scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Scan for accidental secrets / dev vars
+        run: |
+          set -euo pipefail
+          # Fail if anything secret-shaped is committed.
+          if grep -rInE "(sk_live_|rzp_live_|PRINTFUL_API_KEY=|RESEND_API_KEY=|SESSION_SECRET=|CLOUDFLARE_API_TOKEN=|paypal_secret=)" --exclude-dir=node_modules --exclude-dir=.git . ; then
+            echo "::error::Secret-shaped assignment found in committed files"
+            exit 1
+          fi
+          if find . -name ".dev.vars*" -not -path "*/node_modules/*" | grep -q . ; then
+            echo "::error::.dev.vars committed (worker/.gitignore forbids it)"
+            exit 1
+          fi
+      - name: Config validation (parse both wrangler targets)
+        run: |
+          cd worker
+          npx wrangler deploy --config wrangler.free.toml --dry-run --outdir /tmp/wrangler-dry-free
+          npx wrangler deploy --config wrangler.toml --dry-run --outdir /tmp/wrangler-dry-paid
+
+  spa:
+    name: SPA build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm install
+      - run: npm run build
+      - uses: actions/upload-artifact@v4
+        with:
+          name: spa-dist
+          path: dist

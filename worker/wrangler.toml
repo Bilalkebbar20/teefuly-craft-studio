@@ -1,0 +1,73 @@
+# ============================================================
+# TEVULY · Cloudflare Worker — PAID/TARGET configuration
+# Free-tier runtime constraints reject Durable Objects + Queues.
+# This config is the Paid-tier target: DO/Queues are architectural
+# seams only; the Worker selects implementations via binding presence.
+# Deploy with:  wrangler deploy --config wrangler.toml
+# ============================================================
+
+name                 = "tevuly-edge"
+main                 = "src/index.ts"
+compatibility_date   = "2024-12-01"
+compatibility_flags  = ["nodejs_compat"]
+workers_dev          = true
+
+[observability]
+enabled             = true
+head_sampling_rate  = 1
+
+[vars]
+APP_ENV         = "production"
+PUBLIC_BASE_URL = "https://tevuly.com"
+CORS_ORIGINS    = "https://tevuly.com,https://www.tevuly.com"
+
+[assets]
+directory                = "../dist"
+binding                  = "ASSETS"
+not_found_handling       = "single-page-application"
+
+# ---------- D1 ----------
+[[d1_databases]]
+binding        = "TEVULY_D1"
+database_name  = "tevuly-d1"
+database_id    = "00000000-0000-0000-0000-000000000000"
+migrations_dir = "./migrations"
+
+# ---------- R2 ----------
+[[r2_buckets]]
+binding     = "TEVULY_MEDIA"
+bucket_name = "tevuly-media"
+
+# ---------- Queues (Paid tier) ----------
+[[queues.producers]]
+binding = "CATALOG_SYNC_QUEUE"
+queue   = "catalog-sync-queue"
+
+[[queues.producers]]
+binding = "ORDER_FULFILLMENT_QUEUE"
+queue   = "order-fulfillment-queue"
+
+[[queues.consumers]]
+queue             = "catalog-sync-queue"
+max_batch_size    = 10
+max_retries       = 5
+dead_letter_queue = "catalog-sync-queue-dlq"
+
+[[queues.consumers]]
+queue             = "order-fulfillment-queue"
+max_batch_size    = 5
+max_retries       = 7
+dead_letter_queue = "order-fulfillment-queue-dlq"
+
+# ---------- Durable Objects (Paid tier) ----------
+[[durable_objects.bindings]]
+name       = "CART_MANAGER_DO"
+class_name = "CartManagerDO"
+
+[[migrations]]
+tag                = "v1"
+new_sqlite_classes = ["CartManagerDO"]
+
+# ---------- Cron ----------
+[triggers]
+crons = ["0 3 * * *"]

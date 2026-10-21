@@ -1,0 +1,34 @@
+{
+  "name": "@tevuly/worker",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev --config wrangler.free.toml --port 8787",
+    "dev:paid": "wrangler dev --config wrangler.toml --port 8787",
+    "deploy:free": "wrangler deploy --config wrangler.free.toml",
+    "deploy": "wrangler deploy --config wrangler.toml",
+    "db:create": "wrangler d1 create tevuly-d1",
+    "db:migrate:remote": "wrangler d1 migrations apply tevuly-d1",
+    "db:migrate:local": "wrangler d1 migrations apply tevuly-d1 --local",
+    "db:seed:local": "wrangler d1 execute tevuly-d1 --local --file seeds/products.sql",
+    "db:seed:remote": "wrangler d1 execute tevuly-d1 --file seeds/products.sql",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:unit": "vitest run --config vitest.unit.config.ts",
+    "test:integration": "vitest run --config vitest.workers.config.ts",
+    "seed:build": "bun tools/build-seed.ts",
+    "seed:check": "bun tools/build-seed.ts && git diff --exit-code -- seeds/"
+  },
+  "dependencies": {
+    "hono": "^4.6.14",
+    "zod": "^3.24.1"
+  },
+  "devDependencies": {
+    "@cloudflare/vitest-pool-workers": "^0.5.35",
+    "@cloudflare/workers-types": "^4.20241218.0",
+    "typescript": "^5.6.3",
+    "vitest": "^2.1.9",
+    "wrangler": "^3.114.4"
+  }
+}

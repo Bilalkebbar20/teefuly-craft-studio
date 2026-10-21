@@ -3,19 +3,15 @@ import { ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { TeefulyBadge } from "@/components/ui/badge-teefuly";
 import { StarRating } from "@/components/ui/star-rating";
-import { MOCK_PRODUCTS } from "@/lib/mock-data";
 import { formatPrice } from "@/lib/types/product";
+import type { Product } from "@/lib/types/product";
 
 const HERO_BG = {
   background:
     "radial-gradient(ellipse at 20% 50%, hsl(22 100% 96%) 0%, transparent 60%), radial-gradient(ellipse at 80% 20%, hsl(210 100% 95%) 0%, transparent 60%), hsl(var(--background))",
 };
 
-export const Hero = React.memo(function Hero() {
-  const showcase = React.useMemo(
-    () => MOCK_PRODUCTS.filter((p) => p.is_featured).slice(0, 3),
-    [],
-  );
+export const Hero = React.memo(function Hero({ showcase }: { showcase: Product[] }) {
 
   return (
     <section

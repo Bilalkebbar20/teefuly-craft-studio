@@ -3,10 +3,14 @@ import { CategoryNav } from "@/components/layout/CategoryNav";
 import { Hero } from "@/components/home/Hero";
 import { TrustBar } from "@/components/home/TrustBar";
 import { ProductCard, ProductCardSkeleton } from "@/components/product/ProductCard";
-import { MOCK_PRODUCTS } from "@/lib/mock-data";
+import { useProducts } from "@/hooks/use-catalog";
+
+const GRID_SIZE = 8;
 
 const Index = () => {
-  const products = MOCK_PRODUCTS.slice(0, 8);
+  const { data, isLoading, isError } = useProducts({ limit: GRID_SIZE, sort: "relevance" });
+  const products = data?.products ?? [];
+  const showcase = products.filter((p) => p.is_featured).slice(0, 3);
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
@@ -14,7 +18,7 @@ const Index = () => {
       <CategoryNav />
 
       <main className="flex-1">
-        <Hero />
+        <Hero showcase={showcase} />
         <TrustBar />
 
         <section
@@ -24,7 +28,7 @@ const Index = () => {
           <div className="flex items-end justify-between mb-6 sm:mb-8 gap-4">
             <div>
               <p className="text-sm font-medium tracking-wide text-primary uppercase mb-1">
-                Phase 1 + 2 Preview
+                Live from the Edge
               </p>
               <h2
                 id="phase1-grid"
@@ -41,30 +45,35 @@ const Index = () => {
             </a>
           </div>
 
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
-            {products.map((p, i) => (
-              <div
-                key={p.id}
-                className="animate-fade-up"
-                style={{ animationDelay: `${i * 60}ms` }}
-              >
-                <ProductCard
-                  product={p}
-                  priority={i < 4}
-                  onQuickView={() => {}}
-                  onToggleFavorite={() => {}}
-                />
-              </div>
-            ))}
-          </div>
+          {isError && (
+            <p className="text-sm text-text-secondary mb-6">
+              The catalog is momentarily unavailable. Please try again shortly.
+            </p>
+          )}
 
-          <div className="mt-12">
-            <h3 className="font-display text-lg text-foreground mb-4">Loading state</h3>
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
-              {Array.from({ length: 4 }).map((_, i) => (
-                <ProductCardSkeleton key={i} />
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
+            {isLoading &&
+              Array.from({ length: GRID_SIZE }).map((_, i) => (
+                <div key={`skeleton-${i}`} className="animate-fade-up" style={{ animationDelay: `${i * 60}ms` }}>
+                  <ProductCardSkeleton />
+                </div>
               ))}
-            </div>
+
+            {!isLoading &&
+              products.map((p, i) => (
+                <div
+                  key={p.id}
+                  className="animate-fade-up"
+                  style={{ animationDelay: `${i * 60}ms` }}
+                >
+                  <ProductCard
+                    product={p}
+                    priority={i < 4}
+                    onQuickView={() => {}}
+                    onToggleFavorite={() => {}}
+                  />
+                </div>
+              ))}
           </div>
         </section>
       </main>
