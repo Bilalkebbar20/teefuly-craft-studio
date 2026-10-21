@@ -10,15 +10,90 @@ const API = "https://tevuly.com";
 const db = (env as unknown as WorkerEnv).TEVULY_D1;
 
 /**
- * D1's exec driver treats a leading comment-only line as a bad statement
- * and rejects PRAGMA statements entirely (SQLITE_AUTH). Full-line comments
- * and pragmas are documentative/local-only — strip them for the test
- * runtime. (Real migrations via `wrangler d1 migrations apply` keep them.)
+ * D1's exec driver splits on newlines (multi-line CREATE TABLE yields
+ * "incomplete input"), rejects PRAGMA statements (SQLITE_AUTH), and does
+ * not run manual BEGIN/COMMIT. Real migrations via `wrangler d1 migrations
+ * apply` are unaffected. For the in-test runtime we strip comments, PRAGMAs
+ * and transaction scaffolding, then execute each statement through
+ * prepare().run() with a proper splitter that respects string literals and
+ * trigger bodies (CREATE TRIGGER … END;).
  */
 function stripForTestExec(sql: string): string {
   return sql
     .replace(/^\s*--.*$\n?/gm, "")
-    .replace(/^\s*PRAGMA[^\n]*$\n?/gim, "");
+    .replace(/^\s*PRAGMA[^\n]*$\n?/gim, "")
+    .replace(/^\s*(BEGIN|COMMIT)\s*;?\s*\n?/gim, "");
+}
+
+/** Splits SQLite DDL/DML into single statements; aware of quotes + triggers. */
+export function splitSqlStatements(sql: string): string[] {
+  const stmts: string[] = [];
+  let cur = "";
+  let inSingle = false;
+  let inDouble = false;
+  let i = 0;
+  while (i < sql.length) {
+    const ch = sql[i];
+    if (inSingle) {
+      cur += ch;
+      if (ch === "'") {
+        if (sql[i + 1] === "'") {
+          cur += sql[i + 1];
+          i += 2;
+          continue;
+        }
+        inSingle = false;
+      }
+      i += 1;
+      continue;
+    }
+    if (inDouble) {
+      cur += ch;
+      if (ch === '"') {
+        if (sql[i + 1] === '"') {
+          cur += sql[i + 1];
+          i += 2;
+          continue;
+        }
+        inDouble = false;
+      }
+      i += 1;
+      continue;
+    }
+    if (ch === "'") {
+      inSingle = true;
+      cur += ch;
+      i += 1;
+      continue;
+    }
+    if (ch === '"') {
+      inDouble = true;
+      cur += ch;
+      i += 1;
+      continue;
+    }
+    if (ch === ";") {
+      cur += ch;
+      const trimmed = cur.trimStart();
+      const lowered = cur.trim().toLowerCase();
+      if (/^create\s+trigger/.test(trimmed.toLowerCase())) {
+        if (/end\s*;?$/.test(lowered)) {
+          stmts.push(cur.trim());
+          cur = "";
+        }
+        i += 1;
+        continue;
+      }
+      stmts.push(cur.trim());
+      cur = "";
+      i += 1;
+      continue;
+    }
+    cur += ch;
+    i += 1;
+  }
+  if (cur.trim().length > 0) stmts.push(cur.trim());
+  return stmts.filter((s) => s.length > 0);
 }
 
 function json<T>(res: Response): Promise<T> {
@@ -26,8 +101,11 @@ function json<T>(res: Response): Promise<T> {
 }
 
 beforeAll(async () => {
-  await db.exec(stripForTestExec(migrationSql));
-  await db.exec(stripForTestExec(seedSql));
+  const migration = splitSqlStatements(stripForTestExec(migrationSql));
+  const seed = splitSqlStatements(stripForTestExec(seedSql));
+  for (const stmt of [...migration, ...seed]) {
+    await db.prepare(stmt).run();
+  }
 });
 
 describe("GET /api/health", () => {
@@ -225,7 +303,9 @@ describe("API security surface", () => {
 
 describe("seed idempotency", () => {
   it("replaying the seed changes nothing", async () => {
-    await db.exec(seedSql);
+    for (const stmt of splitSqlStatements(stripForTestExec(seedSql))) {
+      await db.prepare(stmt).run();
+    }
     const res = await SELF.fetch(`${API}/api/products`);
     const body = await json<{ pagination: { total: number } }>(res);
     expect(body.pagination.total).toBe(20);
