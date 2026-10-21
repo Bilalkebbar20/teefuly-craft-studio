@@ -3,8 +3,8 @@ import { SELF, env } from "cloudflare:test";
 import type { ProductDetail, ProductSummary } from "../../types/canonical";
 import type { WorkerEnv } from "../../env";
 
-import migrationSql from "../../migrations/0001_init.sql?raw";
-import seedSql from "../../seeds/products.sql?raw";
+import migrationSql from "../../../migrations/0001_init.sql?raw";
+import seedSql from "../../../seeds/products.sql?raw";
 
 const API = "https://tevuly.com";
 const db = (env as unknown as WorkerEnv).TEVULY_D1;

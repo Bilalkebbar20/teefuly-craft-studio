@@ -54,6 +54,9 @@ jobs:
       - name: Config validation (parse both wrangler targets)
         run: |
           cd worker
+          # [assets].directory must exist even for --dry-run; a placeholder
+          # is enough for config parsing (the SPA job builds the real one).
+          mkdir -p ../dist && echo "<html><body>placeholder</body></html>" > ../dist/index.html
           npx wrangler deploy --config wrangler.free.toml --dry-run --outdir /tmp/wrangler-dry-free
           npx wrangler deploy --config wrangler.toml --dry-run --outdir /tmp/wrangler-dry-paid
 
