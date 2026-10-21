@@ -26,6 +26,9 @@ jobs:
       - run: npm run seed:check
       - run: npm run typecheck
       - run: npm run test:unit
+      - name: Build SPA (Worker's [assets].directory must exist for integration tests)
+        run: npm install --no-audit --no-fund --loglevel=error && npm run build
+        working-directory: .
       - run: npm run test:integration
 
   security-scan:
@@ -38,8 +41,9 @@ jobs:
       - name: Scan for accidental secrets / dev vars
         run: |
           set -euo pipefail
-          # Fail if anything secret-shaped is committed.
-          if grep -rInE "(sk_live_|rzp_live_|PRINTFUL_API_KEY=|RESEND_API_KEY=|SESSION_SECRET=|CLOUDFLARE_API_TOKEN=|paypal_secret=)" --exclude-dir=node_modules --exclude-dir=.git . ; then
+          # Fail if anything secret-shaped is committed (.github holds this
+          # scan's own regexes, so it is excluded).
+          if grep -rInE "(sk_live_[A-Za-z0-9]{10,}|rzp_live_[A-Za-z0-9]+|PRINTFUL_API_KEY=|RESEND_API_KEY=|SESSION_SECRET=|CLOUDFLARE_API_TOKEN=|paypal_secret=)" --exclude-dir=node_modules --exclude-dir=.git --exclude-dir=.github . ; then
             echo "::error::Secret-shaped assignment found in committed files"
             exit 1
           fi
