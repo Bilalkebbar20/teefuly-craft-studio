@@ -36,15 +36,17 @@ const app = new Hono<{ Bindings: WorkerEnv }>();
 // 1. Request ID first so every downstream log/error can reference it.
 app.use("*", requestIdMiddleware);
 
-// 2. Context: validated config + redacted logger origin + catalog service.
-app.use("*", async (c, next) => {
+// 2. Context: validated config + redacted logger + catalog service + CORS.
+//    Setup is synchronous; CORS is returned (not voided) so its
+//    short-circuit Responses (403/preflight) finalize the request.
+app.use("*", (c, next) => {
   const cfg = loadConfig(c.env);
   c.set("config", cfg);
   c.set("logger", createLogger(cfg.APP_ENV));
   c.set("catalog", new CatalogService(new ProductRepository(new D1Client(c.env.TEVULY_D1)), cfg.PUBLIC_BASE_URL));
   const extraOrigins = cfg.CORS_ORIGINS.split(",").map((s) => s.trim()).filter(Boolean);
   const origins = buildAllowedOrigins(cfg.PUBLIC_BASE_URL, extraOrigins, cfg.APP_ENV);
-  await corsMiddleware(origins)(c, next);
+  return corsMiddleware(origins)(c, next);
 });
 
 // 3. Mounted API surface.
@@ -76,9 +78,18 @@ app.onError(async (err, c) => {
   const production = cfg ? cfg.APP_ENV === "production" : true;
   const status = err instanceof ApiError ? err.status : 500;
   const code = err instanceof ApiError ? err.code : "INTERNAL_ERROR";
-  c.get("logger")?.error("request failed", { requestId, status, code });
+  c.get("logger")?.error("request failed", {
+    requestId,
+    status,
+    code,
+    detail: err instanceof Error ? err.message : String(err),
+    stack: err instanceof Error ? err.stack : undefined,
+  });
   return c.json(toErrorBody(err, requestId, production), status as ContentfulStatusCode);
 });
+
+// Export the raw Hono app for unit-level replay testing (app.request()).
+export { app };
 
 export default {
   fetch: app.fetch,

@@ -128,10 +128,11 @@ describe("GET /api/products", () => {
     expect(body.data.length).toBe(20);
     const first = body.data[0];
     expect(first).toMatchObject({
-      slug: "vintage-sunset-mountains-tee",
-      title: "Vintage Sunset Mountains Tee",
-      price_cents: 2899,
-      compare_price: 3899,
+      // relevance sort = featured first, then sales_count — p-002 leads.
+      slug: "minimalist-cat-portrait-mug",
+      title: "Minimalist Cat Portrait Ceramic Mug",
+      price_cents: 1799,
+      compare_price: null,
       free_shipping: true,
       is_featured: true,
       is_trending: true,
@@ -140,9 +141,9 @@ describe("GET /api/products", () => {
     expect(Array.isArray(first.images)).toBe(true);
     expect(Array.isArray(first.tags)).toBe(true);
     expect(Array.isArray(first.badges)).toBe(true);
-    expect(first.shop.slug).toBe("artisanprints");
-    expect(first.shop.name).toBe("ArtisanPrints");
-    expect(first.category_slug).toBe("t-shirts");
+    expect(first.shop.slug).toBe("wildink");
+    expect(first.shop.name).toBe("WildInk Studio");
+    expect(first.category_slug).toBe("mugs");
   });
 
   it("filters by category slug", async () => {

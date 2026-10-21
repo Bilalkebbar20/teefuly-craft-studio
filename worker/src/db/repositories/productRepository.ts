@@ -185,7 +185,7 @@ export class ProductRepository {
   async listVariants(productId: string): Promise<VariantRow[]> {
     return this.client.all<VariantRow>(
       `SELECT id, sync_variant_id, size, color_name, color_code, title, price_cents, compare_at_cents, is_available, stock
-       FROM print_variants WHERE product_id = ? ORDER BY price_cents ASC, title ASC`,
+       FROM print_variants WHERE product_id = ? ORDER BY price_cents ASC, id ASC`,
       [productId],
     );
   }
