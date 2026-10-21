@@ -54,14 +54,16 @@ jobs:
       - name: Install worker deps (deploy --dry-run bundles src/, which imports hono/zod)
         run: npm ci
         working-directory: worker
-      - name: Config validation (parse both wrangler targets)
+      - name: Config validation (active free-tier deploy target)
         run: |
           cd worker
           # [assets].directory must exist even for --dry-run; a placeholder
           # is enough for config parsing (the SPA job builds the real one).
           mkdir -p ../dist && echo "<html><body>placeholder</body></html>" > ../dist/index.html
           npx wrangler deploy --config wrangler.free.toml --dry-run --outdir /tmp/wrangler-dry-free
-          npx wrangler deploy --config wrangler.toml --dry-run --outdir /tmp/wrangler-dry-paid
+          # NOTE: wrangler.toml (paid target) is validated from Phase B — it
+          # declares the CartManagerDO + queues seams that do not exist yet,
+          # so a deploy dry-run is expected to refuse it today.
 
   spa:
     name: SPA build

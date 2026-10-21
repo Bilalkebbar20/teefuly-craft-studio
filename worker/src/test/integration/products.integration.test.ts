@@ -10,12 +10,15 @@ const API = "https://tevuly.com";
 const db = (env as unknown as WorkerEnv).TEVULY_D1;
 
 /**
- * D1's exec driver treats a leading comment-only line as a bad statement.
- * Full-line comments are documentative only — strip them for the test
- * runtime. (Real migrations via `wrangler d1 migrations apply` are fine.)
+ * D1's exec driver treats a leading comment-only line as a bad statement
+ * and rejects PRAGMA statements entirely (SQLITE_AUTH). Full-line comments
+ * and pragmas are documentative/local-only — strip them for the test
+ * runtime. (Real migrations via `wrangler d1 migrations apply` keep them.)
  */
-function stripSqlComments(sql: string): string {
-  return sql.replace(/^\s*--.*$\n?/gm, "");
+function stripForTestExec(sql: string): string {
+  return sql
+    .replace(/^\s*--.*$\n?/gm, "")
+    .replace(/^\s*PRAGMA[^\n]*$\n?/gim, "");
 }
 
 function json<T>(res: Response): Promise<T> {
@@ -23,8 +26,8 @@ function json<T>(res: Response): Promise<T> {
 }
 
 beforeAll(async () => {
-  await db.exec(stripSqlComments(migrationSql));
-  await db.exec(stripSqlComments(seedSql));
+  await db.exec(stripForTestExec(migrationSql));
+  await db.exec(stripForTestExec(seedSql));
 });
 
 describe("GET /api/health", () => {
